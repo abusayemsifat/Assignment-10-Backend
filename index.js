@@ -65,9 +65,17 @@ async function run() {
 
     })
 
-    app.put('/update', async(req, res)=>{
+    app.put('/update/:id', async(req, res)=>{
       const data = req.body;
-      console.log(data)
+      const id = req.params
+      const query = {_id: new ObjectId(id)}
+
+      const updateServices = {
+        $set: data
+      }
+
+      const result = await petServices.updateOne(query, updateServices)
+      res.send(result)
     })
 
     await client.db("admin").command({ ping: 1 });
