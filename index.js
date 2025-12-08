@@ -94,6 +94,8 @@ async function run() {
     app.post('/orders', async(req, res)=>{
       const data = req.body
       console.log(data);
+      const result = await orderCollections.insertOne(data)
+      res.status(201).send(result)
     })
 
     // await client.db("admin").command({ ping: 1 });
