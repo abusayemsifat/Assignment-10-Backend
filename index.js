@@ -1,116 +1,51 @@
 require('dotenv').config();
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
-const port = 3000;
+const { connectDB } = require('./config/db');
+const errorHandler = require('./middleware/errorHandler');
 
-const app = express();
-app.use(cors());
-app.use(express.json())
+const authRoutes    = require('./routes/authRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const orderRoutes   = require('./routes/orderRoutes');
+const userRoutes    = require('./routes/userRoutes');
+const statsRoutes   = require('./routes/statsRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
+const app  = express();
+const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean);
 
-const uri = "mongodb+srv://missionSCIC:6JlQx33fBfynfuZV@cluster0.nsup1w5.mongodb.net/?appName=Cluster0";
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/auth',     authRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/orders',   orderRoutes);
+app.use('/api/users',    userRoutes);
+app.use('/api/stats',    statsRoutes);
+app.use('/api/contact',  contactRoutes);
+
+app.get('/', (req, res) => res.json({ message: 'PawMart API v2.0', status: 'running' }));
+app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
+app.use(errorHandler);
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`PawMart server running on port ${PORT}`);
+    }
+  });
 });
-
-async function run() {
-  try {
-
-    // await client.connect();
-
-    const database = client.db('petService');
-    const petServices = database.collection('services');
-    const orderCollections = database.collection('orders');
-
-    // post or save service to DB
-    app.post('/services', async (req, res) => {
-      const data = req.body;
-      const date = new Date();
-      data.createdAt = date;
-      console.log(data);
-      const result = await petServices.insertOne(data);
-      res.send(result)
-    })
-
-    app.get('/services/:id', async (req, res) => {
-      const id = req.params
-      console.log(id);
-
-      const query = {_id: new ObjectId(id)}
-      const result = await petServices.findOne(query)
-      res.send(result)
-    })
-
-
-    // Get services from DB
-    app.get('/services', async (req, res) => {
-      const {category} = req.query;
-      const query = {}
-      if(category){
-        query.category = category
-      }
-      const result = await petServices.find(query).toArray();
-      res.send(result)
-    })
-
-
-    app.get('/my-services', async(req, res)=>{
-      
-      const {email} = req.query 
-      const query = {email: email}
-      const result = await petServices.find(query).toArray()
-      res.send(result)
-
-    })
-
-    app.put('/update/:id', async(req, res)=>{
-      const data = req.body;
-      const id = req.params
-      const query = {_id: new ObjectId(id)}
-
-      const updateServices = {
-        $set: data
-      }
-
-      const result = await petServices.updateOne(query, updateServices)
-      res.send(result)
-    })
-
-    app.delete('/delete/:id', async(req, res)=>{
-      const id = req.params
-      const query = {_id: new ObjectId(id)}
-      const result = await petServices.deleteOne(query)
-      res.send(result)
-    })
-
-    app.post('/orders', async(req, res)=>{
-      const data = req.body
-      console.log(data);
-      const result = await orderCollections.insertOne(data)
-      res.status(201).send(result)
-    })
-
-    // await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-
-    // await client.close();
-  }
-}
-run().catch(console.dir);
-
-app.get('/', (req, res) => {
-  res.send('Hello, Developers')
-})
-
-app.listen(port, () => {
-  console.log(`server is running on ${port}`);
-})
