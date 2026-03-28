@@ -14,25 +14,45 @@ const contactRoutes = require('./routes/contactRoutes');
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+// Define allowed origins with regex pattern for localhost
 const allowedOrigins = [
     process.env.CLIENT_URL,
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:3000',
+    /^http:\/\/localhost:\d+$/, // Allow any localhost port (5173, 5174, 5175, etc.)
 ].filter(Boolean);
 
 console.log('Allowed Origins:', allowedOrigins);
 
-// Enable CORS
+// Enable CORS with dynamic origin checking
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // Check if origin matches any allowed origin
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return allowed === origin;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            console.log('Blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
 }));
 
 // Handle preflight requests
-app.options('*', cors({
-    origin: allowedOrigins,
-    credentials: true,
-}));
+app.options('*', cors());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
